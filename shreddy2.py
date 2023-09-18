@@ -369,17 +369,19 @@ def erase_medium(device):
     print(f"+ Create file system {path}")
     start = timer()
     device.set_status(DeviceStatus.RUNNING, "Creating file system")
-    if not run_command(["mkfs.vfat", fs_device]):
-        device.set_error("Creating file system failed")
-        bl_handler.set_status(path, DeviceStatus.ERROR)
-        return False
-    print("%s - Time for %s was: %.2f s" % (path, "mkfs.vfat", timer() - start))
 
-    print("+ Completed")
-    device.set_status(DeviceStatus.DONE, "done")
-    bl_handler.set_status(path, DeviceStatus.DONE)
+    for i in range(1, num_passes):
+        if not run_command(["mkfs.vfat", fs_device]):
+            device.set_error(f"Creating file system failed, retrying {i}/{num_passes}")
+            bl_handler.set_status(path, DeviceStatus.ERROR)
+        else:
+            print("%s - Time for %s was: %.2f s" % (path, "mkfs.vfat", timer() - start))
+            print("+ Completed")
+            device.set_status(DeviceStatus.DONE, "done")
+            bl_handler.set_status(path, DeviceStatus.DONE)
+            return True
 
-    return True
+    return False
 
 
 # -------------------------------------------------------------------------
