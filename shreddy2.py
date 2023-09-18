@@ -47,10 +47,13 @@ import socketserver
 import time
 import os
 import string
-from timeit import default_timer as timer
+import RPi.GPIO as GPIO
 
+from timeit import default_timer as timer
 from enum import Enum
 
+WORKING_LED_PIN = 17
+ERROR_LED_PIN = 26
 
 # TCP server port to use (using None disables the server)
 port = 2342
@@ -60,8 +63,8 @@ host = ""
 # log
 last_devices = []
 
-# busylight handler
-bl_handler = None
+# light handler
+light_handler = None
 
 # -------------------------------------------------------------------------
 # Device
@@ -191,6 +194,51 @@ class BusylightHandler(threading.Thread):
                     self.bl.set_rgb(color)
                     self.bl.send()
 
+class LedHandler(threading.Thread):
+    def __init__(self):
+        GPIO.setmode(GPIO.BCM)
+        GPIO.setup(WORKING_LED_PIN, GPIO.OUT)
+        GPIO.setup(ERROR_LED_PIN, GPIO.OUT)
+        GPIO.output(WORKING_LED_PIN, GPIO.HIGH)
+        GPIO.output(ERROR_LED_PIN, GPIO.HIGH)
+
+        self.states = {}
+        self.event = threading.Event()
+
+    def set_status(self, medium, state):
+        self.states[medium] = state
+        self.event.set()
+
+    def run(self):
+
+        max_level = DeviceStatus.NONE
+
+        while True:
+
+            self.event.wait(None if max_level != DeviceStatus.ERROR else 2)
+            self.event.clear()
+
+            max_level = DeviceStatus.NONE
+            for m in self.states:
+                if self.states[m] > max_level:
+                    max_level = self.states[m]
+
+            print(max_level)
+            if max_level == DeviceStatus.NONE:
+                GPIO.cleanup()
+            elif max_level == DeviceStatus.REMOVED:
+                GPIO.cleanup()
+            elif max_level == DeviceStatus.INSERTED:
+                GPIO.output(WORKING_LED_PIN, GPIO.HIGH)
+            elif max_level == DeviceStatus.RUNNING:
+                GPIO.output(WORKING_LED_PIN, GPIO.LOW)
+                time.sleep(1)
+                GPIO.output(WORKING_LED_PIN, GPIO.HIGH)
+            elif max_level == DeviceStatus.DONE:
+                GPIO.cleanup()
+            elif max_level == DeviceStatus.ERROR:
+                GPIO.cleanup()
+                # GPIO.output(ERROR_LED_PIN, GPIO.HIGH)
 
 class ConnectionHandler(socketserver.StreamRequestHandler):
 
@@ -341,7 +389,7 @@ def erase_medium(device):
 
     path = device.get_path()
 
-    bl_handler.set_status(path, DeviceStatus.RUNNING)
+    light_handler.set_status(path, DeviceStatus.RUNNING)
 
     num_passes = 3
     patterns = ["0", "255"]
@@ -352,7 +400,7 @@ def erase_medium(device):
         device.set_status(DeviceStatus.RUNNING, f"overwriting pass {i}/{num_passes}")
         if not run_command(["badblocks", "-w", "-p", "1", "-t", patterns[i], path]):
             device.set_error("Erasing failed.")
-            bl_handler.set_status(path, DeviceStatus.ERROR)
+            light_handler.set_status(path, DeviceStatus.ERROR)
             return False
         print(
             "%s - Time for overwrite pass %d was: %.2f s" % (path, i, timer() - start)
@@ -363,7 +411,7 @@ def erase_medium(device):
     device.set_status(DeviceStatus.RUNNING, f"overwriting pass 3/{num_passes}")
     if not run_command(["shred", "-vn", "1", path]):
         device.set_error("Erasing failed.")
-        bl_handler.set_status(path, DeviceStatus.ERROR)
+        light_handler.set_status(path, DeviceStatus.ERROR)
         return False
     print("%s - Time for overwrite pass %d was: %.2f s" % (path, 3, timer() - start))
 
@@ -376,7 +424,7 @@ def erase_medium(device):
     device.set_status(DeviceStatus.RUNNING, "partitioning disk")
     if not run_command(["sudo", "shreddy2-partition.sh", path]):
         device.set_error("Partitioning disk failed")
-        bl_handler.set_status(path, DeviceStatus.ERROR)
+        light_handler.set_status(path, DeviceStatus.ERROR)
         return False
     print(
         "%s - Time for %s was: %.2f s"
@@ -387,11 +435,11 @@ def erase_medium(device):
     print(f"+ Wait for file system {path} to appear ...")
     fs_device = f"{path}1"
 
-    # Sometimes the device is not immeditly available and
+    # Sometimes the device is not immediately available and
     # we need to wait.
     if not wait_for_device(fs_device):
         device.set_error(f"Device {fs_device} does not appear")
-        bl_handler.set_status(path, DeviceStatus.ERROR)
+        light_handler.set_status(path, DeviceStatus.ERROR)
         return False
     print("%s - Time for %s was: %.2f s" % (path, "waiting", timer() - start))
 
@@ -400,14 +448,13 @@ def erase_medium(device):
     device.set_status(DeviceStatus.RUNNING, "Creating file system")
     if not run_command(["mkfs.vfat", fs_device]):
         device.set_error("Creating file system failed")
-        bl_handler.set_status(path, DeviceStatus.ERROR)
+        light_handler.set_status(path, DeviceStatus.ERROR)
         return False
     print("%s - Time for %s was: %.2f s" % (path, "mkfs.vfat", timer() - start))
 
     print("+ Completed")
     device.set_status(DeviceStatus.DONE, "done")
-    bl_handler.set_status(path, DeviceStatus.DONE)
-
+    light_handler.set_status(path, DeviceStatus.DONE)
     return True
 
 
@@ -442,7 +489,7 @@ def monitor_events():
                     print(f"+ Enqueue erase operation for {device.device_node}")
 
                     dev = Device(device.device_node, device.properties["ID_MODEL"])
-                    bl_handler.set_status(dev.get_path(), DeviceStatus.INSERTED)
+                    light_handler.set_status(dev.get_path(), DeviceStatus.INSERTED)
                     last_devices.append(dev)
 
                     t = threading.Thread(target=erase_medium, args=(dev,))
@@ -453,7 +500,7 @@ def monitor_events():
                 if last_devices:
                     for d in reversed(last_devices):
                         if d.get_path() == device.device_node:
-                            bl_handler.set_status(d.get_path(), DeviceStatus.REMOVED)
+                            light_handler.set_status(d.get_path(), DeviceStatus.REMOVED)
                             d.set_status(DeviceStatus.REMOVED, "removed")
 
 
@@ -463,7 +510,7 @@ def monitor_events():
 
 
 def main():
-    global bl_handler
+    global light_handler
 
     # First check if required commands are available. Therefore, we
     # run them in a safe manor and check what the return code is.
@@ -492,7 +539,12 @@ def main():
             bl = None
             pass
 
-        bl_handler = BusylightHandler(bl)
+        if bl is not None:
+            print("+ Busylight found. Using it")
+            light_handler = BusylightHandler(bl)
+        else:
+            print("+ No busylight found. Using GPIO LEDs")
+            light_handler = LedHandler()
 
         if port is not None:
             print("+ Start TCP server.")
