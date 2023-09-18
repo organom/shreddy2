@@ -218,13 +218,13 @@ class ConnectionHandler(socketserver.StreamRequestHandler):
 
         response = (
             self.clear_screen
-            + f"{self.cyan}  +++ Shreddy2 +++  {self.white}  Pentagrid AG - https://pentagrid.ch\n\n"
+            + f"\n{self.cyan}  +++ Shreddy2 +++  {self.white}  Pentagrid AG - https://pentagrid.ch\n\n"
             + f"\n\n"
         )
 
         if last_devices:
-            response += "{:10} {:20} {:20}\n".format("Device", "Model", "Status")
-            response += "{:10} {:20} {:20}\n\n".format("-" * 10, "-" * 20, "-" * 20)
+            response += "{:12} {:22} {:22}\n".format("Device", "Model", "Status")
+            response += "{:12} {:22} {:22}\n\n".format("-" * 12, "-" * 22, "-" * 22)
 
             for dev in reversed(last_devices[-10:]):
                 if dev:
@@ -241,7 +241,7 @@ class ConnectionHandler(socketserver.StreamRequestHandler):
                     else:
                         color = self.white
 
-                    response += "{:10} {:20} {}{:20}{}\n".format(
+                    response += "{:12} {:22} {}{:22}{}\n".format(
                         dev.get_path(),
                         dev.get_model(),
                         color,
