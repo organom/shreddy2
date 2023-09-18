@@ -218,7 +218,7 @@ class ConnectionHandler(socketserver.StreamRequestHandler):
 
         response = (
             self.clear_screen
-            + f"\n{self.cyan}  +++ Shreddy2 +++  {self.white}  Pentagrid AG - https://pentagrid.ch\n\n"
+            + f"\n\n{self.cyan}  +++ Shreddy2 +++  {self.white}  Pentagrid AG - https://pentagrid.ch\n\n"
             + f"\n\n"
         )
 
