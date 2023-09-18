@@ -218,42 +218,13 @@ class ConnectionHandler(socketserver.StreamRequestHandler):
 
         response = (
             self.clear_screen
-            + self.logo_col
-            + "   _______  __   __  ______    _______  ______   ______   __   __ "
-            + self.version_col
-            + "   _______ \n"
-            + self.logo_col
-            + "  |       ||  | |  ||    _ |  |       ||      | |      | |  | |  |"
-            + self.version_col
-            + "  |       |\n"
-            + self.logo_col
-            + "  |  _____||  |_|  ||   | ||  |    ___||  _    ||  _    ||  |_|  |"
-            + self.version_col
-            + "  |____   |\n"
-            + self.logo_col
-            + "  | |_____ |       ||   |_||_ |   |___ | | |   || | |   ||       |"
-            + self.version_col
-            + "   ____|  |\n"
-            + self.logo_col
-            + "  |_____  ||       ||    __  ||    ___|| |_|   || |_|   ||_     _|"
-            + self.version_col
-            + "  | ______|\n"
-            + self.logo_col
-            + "   _____| ||   _   ||   |  | ||   |___ |       ||       |  |   |  "
-            + self.version_col
-            + "  | |_____ \n"
-            + self.logo_col
-            + "  |_______||__| |__||___|  |_||_______||______| |______|   |___|  "
-            + self.version_col
-            + "  |_______|\n"
-            + f"{self.cyan}  +++ Shreddy, ready, go! +++  {self.white}           Pentagrid AG - https://pentagrid.ch\n\n"
-            + f"{self.red}  Disclaimer: There is no guarantee that all data is completely deleted.{self.off}"
+            + f"{self.cyan}  +++ Shreddy2 +++  {self.white}  Pentagrid AG - https://pentagrid.ch\n\n"
             + f"\n\n"
         )
 
         if last_devices:
-            response += "{:16} {:30} {:30}\n".format("Device", "Model", "Status")
-            response += "{:16} {:30} {:30}\n\n".format("-" * 16, "-" * 30, "-" * 30)
+            response += "{:10} {:20} {:20}\n".format("Device", "Model", "Status")
+            response += "{:10} {:20} {:20}\n\n".format("-" * 10, "-" * 20, "-" * 20)
 
             for dev in reversed(last_devices[-10:]):
                 if dev:
@@ -270,7 +241,7 @@ class ConnectionHandler(socketserver.StreamRequestHandler):
                     else:
                         color = self.white
 
-                    response += "{:16} {:30} {}{:30}{}\n".format(
+                    response += "{:10} {:20} {}{:20}{}\n".format(
                         dev.get_path(),
                         dev.get_model(),
                         color,
