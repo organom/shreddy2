@@ -223,8 +223,8 @@ class ConnectionHandler(socketserver.StreamRequestHandler):
         )
 
         if last_devices:
-            response += "{:12} {:22} {:22}\n".format("Device", "Model", "Status")
-            response += "{:12} {:22} {:22}\n\n".format("-" * 12, "-" * 22, "-" * 22)
+            response += "{:12} {:23} {:23}\n".format("Device", "Model", "Status")
+            response += "{:12} {:23} {:23}\n\n".format("-" * 12, "-" * 23, "-" * 23)
 
             for dev in reversed(last_devices[-10:]):
                 if dev:
@@ -241,7 +241,7 @@ class ConnectionHandler(socketserver.StreamRequestHandler):
                     else:
                         color = self.white
 
-                    response += "{:12} {:22} {}{:22}{}\n".format(
+                    response += "{:12} {:23} {}{:23}{}\n".format(
                         dev.get_path(),
                         dev.get_model(),
                         color,
@@ -372,8 +372,9 @@ def erase_medium(device):
 
     for i in range(1, num_passes):
         if not run_command(["mkfs.vfat", fs_device]):
-            device.set_error(f"Creating file system failed, retrying {i}/{num_passes}")
+            device.set_error(f"Filesystem failed {i}/{num_passes}")
             bl_handler.set_status(path, DeviceStatus.ERROR)
+            time.sleep(3)
         else:
             print("%s - Time for %s was: %.2f s" % (path, "mkfs.vfat", timer() - start))
             print("+ Completed")
